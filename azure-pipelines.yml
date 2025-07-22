@@ -1,5 +1,5 @@
 trigger:
-- master 
+- master
 
 pool:
   vmImage: 'windows-latest'
@@ -11,7 +11,7 @@ steps:
 - task: UseDotNet@2
   inputs:
     packageType: 'sdk'
-    version: '8.x'
+    version: '8.x.x'
     installationPath: $(Agent.ToolsDirectory)/dotnet
 
 - task: NuGetToolInstaller@1
@@ -23,18 +23,13 @@ steps:
 - task: VSBuild@1
   inputs:
     solution: '**/*.sln'
+    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:PackageLocation="$(Build.ArtifactStagingDirectory)"'
     platform: 'Any CPU'
     configuration: '$(buildConfiguration)'
 
-- task: DotNetCoreCLI@2
+- task: AzureWebApp@1
   inputs:
-    command: 'publish'
-    publishWebProjects: true
-    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
-    zipAfterPublish: true
-
-- task: PublishBuildArtifacts@1
-  inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'drop'
-    publishLocation: 'Container'
+    azureSubscription: 'AzurePipelineConnection'
+    appType: 'webApp'
+    appName: 'CvAndToolsApp'
+    package: '$(Build.ArtifactStagingDirectory)/**/*.zip'
