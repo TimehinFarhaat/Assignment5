@@ -1,0 +1,224 @@
+﻿@model CSharpMvcBasics.DTO.GalleryViewModelDto
+
+@{
+    ViewData["Title"] = "Gallery Upload";
+    var error = TempData["Error"] as string;
+    var success = TempData["Success"] as string;
+    var note = TempData["Note"] as string;
+}
+
+<div class="container py-4">
+    <div class="text-center ">
+        <h1 class="text-primary fw-bold">📸 Gallery Upload</h1>
+        <p class="text-muted">Upload and view beautiful images by category and date.</p>
+    </div>
+
+    <!-- ✅ Alerts -->
+    <div class="mb-2">
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="alert alert-danger alert-dismissible fade show custom-alert" role="alert">
+                @error
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(success))
+        {
+            <div class="alert alert-success alert-dismissible fade show temp-alert custom-alert" role="alert">
+                @success
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(note))
+        {
+            <div class="alert alert-info alert-dismissible fade show custom-alert" role="alert">
+                @note
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+    </div>
+
+    <!-- ✅ Upload Form -->
+    <div class="row justify-content-center mb-2">
+        <div class="col-lg-6 col-md-8">
+            <div class="card shadow p-4 rounded-4 border-0">
+                <h4 class="mb-2 text-center text-primary">🚀 Upload a New Image</h4>
+                <form asp-action="Upload" method="post" enctype="multipart/form-data" novalidate>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Title</label>
+                        <input asp-for="Upload.Title" class="form-control rounded-3" placeholder="Enter image title" />
+                        <span asp-validation-for="Upload.Title" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Category</label>
+                        <select asp-for="Upload.Category" class="form-select rounded-3">
+                            <option value="">-- Select Category --</option>
+                            <option>Food</option>
+                            <option>Cloth</option>
+                            <option>Building</option>
+                        </select>
+                        <span asp-validation-for="Upload.Category" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Select Image</label>
+                        <input asp-for="Upload.ImageFile" type="file" accept="image/*" class="form-control rounded-3" onchange="previewImage(event)" />
+                        <span asp-validation-for="Upload.ImageFile" class="text-danger small"></span>
+                    </div>
+
+                    <!-- Image Preview -->
+                    <div class="mb-3 text-center">
+                        <img id="preview" src="#" alt="Image Preview"
+                             class="img-fluid rounded shadow-sm border d-none"
+                             style="max-height: 150px; object-fit: contain;" />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill fw-semibold">
+                        <i class="bi bi-upload me-1"></i> Upload Image
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ Filter Controls -->
+    <div class="row justify-content-between align-items-center mb-4">
+        <div class="col-md-6 mb-2">
+            <label class="form-label fw-semibold me-2">Filter by Category:</label>
+            <select id="categoryFilter" class="form-select w-auto d-inline-block">
+                <option value="All">All</option>
+                <option value="Food">Food</option>
+                <option value="Cloth">Cloth</option>
+                <option value="Building">Building</option>
+            </select>
+        </div>
+        <div class="col-md-6 text-md-end mb-2">
+            <label class="form-label fw-semibold me-2">Sort by:</label>
+            <select id="sortOrder" class="form-select w-auto d-inline-block">
+                <option value="">None</option>
+                <option value="latest">Latest First</option>
+                <option value="oldest">Oldest First</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- ✅ Gallery -->
+    <h4 class="text-secondary mb-3 fw-semibold">🖼 Uploaded Images</h4>
+
+    @if (Model.Images != null && Model.Images.Any())
+    {
+        <div class="row g-4" id="galleryGrid">
+            @foreach (var image in Model.Images)
+            {
+                <div class="col-sm-6 col-md-4 col-lg-3 gallery-item animated-card" data-category="@image.Category">
+                    <div class="card shadow-sm h-100 border-0 rounded-4">
+                        <img src="@image.ImageUrl" class="card-img-top gallery-thumbnail rounded-top" alt="@image.Title" style="height: 180px; object-fit: cover; cursor: pointer;">
+                        <div class="card-body">
+                            <h6 class="card-title text-truncate">@image.Title</h6>
+                            <span class="badge bg-light text-dark border">@image.Category</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">No images uploaded yet.</div>
+    }
+</div>
+
+<!-- ✅ Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">Preview</h5>
+                <div>
+                    <button id="zoomIn" class="btn btn-outline-light btn-sm me-2">Zoom In</button>
+                    <button id="zoomOut" class="btn btn-outline-light btn-sm me-2">Zoom Out</button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+            <div class="modal-body d-flex justify-content-center align-items-center p-0" style="height: 90vh;">
+                <div style="aspect-ratio: 16/9; width: 90%; max-height: 90vh; display: flex; justify-content: center; align-items: center; background-color: black;">
+                    <img id="modalImage" src="" class="img-fluid h-100 w-100 object-fit-contain" style="object-fit: contain;" />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.querySelector(".alert-success")) {
+                document.querySelector("form").reset();
+                document.getElementById("preview").classList.add("d-none");
+            }
+
+            document.querySelectorAll('.alert-dismissible').forEach(alert => {
+                setTimeout(() => {
+                    bootstrap.Alert.getOrCreateInstance(alert).close();
+                }, 4000);
+            });
+
+            document.getElementById("categoryFilter").addEventListener("change", updateFilters);
+            document.getElementById("sortOrder").addEventListener("change", updateFilters);
+
+            function updateFilters() {
+                const category = document.getElementById("categoryFilter").value;
+                const sortOrder = document.getElementById("sortOrder").value;
+
+                const query = new URLSearchParams();
+                if (category && category !== "All") query.append("category", category);
+                if (sortOrder) query.append("sortOrder", sortOrder);
+
+                window.location.href = "/Gallery/Index" + (query.toString() ? "?" + query.toString() : "");
+            }
+
+            const modalImg = document.getElementById("modalImage");
+            let zoomLevel = 1;
+
+            document.querySelectorAll(".gallery-thumbnail").forEach((img) => {
+                img.addEventListener("click", function () {
+                    zoomLevel = 1;
+                    modalImg.src = this.src;
+                    modalImg.style.transform = 'scale(1)';
+                    new bootstrap.Modal(document.getElementById('imageModal')).show();
+                });
+            });
+
+            document.getElementById('zoomIn').addEventListener('click', () => {
+                zoomLevel += 0.1;
+                modalImg.style.transform = `scale(${zoomLevel})`;
+            });
+
+            document.getElementById('zoomOut').addEventListener('click', () => {
+                if (zoomLevel > 0.2) {
+                    zoomLevel -= 0.1;
+                    modalImg.style.transform = `scale(${zoomLevel})`;
+                }
+            });
+        });
+
+        function previewImage(event) {
+            const input = event.target;
+            const preview = document.getElementById('preview');
+
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    preview.src = e.target.result;
+                    preview.classList.remove('d-none');
+                };
+                reader.readAsDataURL(input.files[0]);
+            } else {
+                preview.removeAttribute('src');
+                preview.classList.add('d-none');
+            }
+        }
+    </script>
+}

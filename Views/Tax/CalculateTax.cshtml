@@ -1,0 +1,39 @@
+﻿@model CSharpMvcBasics.DTO.TaxDto
+@{
+    ViewData["Title"] = "Tax Calculator";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class=" container py-5">
+    <div class=" animated-card card shadow-lg p-4" style="max-width: 750px; margin: auto; background: linear-gradient(to right, #f8f9fa, #e9ecef);">
+        <h2 class="text-center text-primary mb-4">💰 Tax Calculator</h2>
+        <h4 class="text-center text-dark mb-6">Are you a Nigerian </h4>
+        <h6 class="text-center text-dark mb-4">This is a simple Tax Calculator for you to calculate your task</h6>
+
+        <form asp-action="CalculateTax" method="post" class="mb-4">
+            <div class="mb-3">
+                <label for="monthlyIncome" class="form-label">Enter Monthly Income</label>
+                <input type="number" class="form-control" name="monthlyIncome" required min="1" placeholder="e.g. 120000" />
+            </div>
+            <div class="text-center">
+                <button type="submit" class="btn btn-warning">Calculate</button>
+            </div>
+        </form>
+
+        @if (Model != null && Model.AnnualIncome > 0)
+        {
+            <div class="alert alert-warning mt-3">
+                <h5 class="text-primary">📊 Result Summary</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">Annual Income: ₦@Model.AnnualIncome.ToString("N")</li>
+                    <li class="list-group-item">Pension: ₦@Model.Pension.ToString("N")</li>
+                    <li class="list-group-item">CRA (Relief): ₦@Model.CRA.ToString("N")</li>
+                    <li class="list-group-item">Taxable Income: ₦@Model.TaxableIncome.ToString("N")</li>
+                    <li class="list-group-item">Annual Tax: ₦@Model.AnnualTax.ToString("N")</li>
+                    <li class="list-group-item">Monthly Tax: ₦@Model.MonthlyTax.ToString("N")</li>
+                    <li class="list-group-item">Net Annual Income: ₦@Model.NetIcome.ToString("N")</li>
+                </ul>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,77 @@
+body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    background-color: #f8f9fa;
+}
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 220px;
+    background-color: #212529;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+}
+
+.content {
+    margin-left: 220px;
+    transition: margin-left 0.3s ease;
+}
+
+.sidebar h4 {
+    font-size: 1.4rem;
+}
+
+.sidebar a {
+    padding: 10px 20px;
+    display: block;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+    .sidebar a:hover {
+        background-color: #343a40;
+        color: #fff !important;
+    }
+
+
+
+
+
+.animated-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    will-change: transform;
+}
+
+    .animated-card:hover {
+        transform: translateY(-8px) scale(1.01);
+        /*box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);*/
+    }
+
+
+.custom-alert {
+    max-width: 400px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    margin: 0 auto;
+}
+
+
+/* Now apply for screens up to 1199px (includes mini iPads) */
+@media (max-width: 1199.98px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+
+        .sidebar.active {
+            transform: translateX(0);
+        }
+
+    .content {
+        margin-left: 0 !important;
+    }
+}
+
