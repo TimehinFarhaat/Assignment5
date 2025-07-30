@@ -42,6 +42,7 @@ publish/
 
 ## Azure Pipelines
 .azure-pipelines/
+azure-pipelines.yml
 
 ## Crash dumps
 *.dmp
