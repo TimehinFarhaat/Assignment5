@@ -1,70 +1,83 @@
-﻿
+﻿using CloudinaryDotNet;
 using CSharpMvcBasics.Configuration;
 using CSharpMvcBasics.Implementation.Repository;
 using CSharpMvcBasics.Implementation.Service;
 using CSharpMvcBasics.Interface.Repository;
 using CSharpMvcBasics.Interface.Services;
 using Microsoft.EntityFrameworkCore;
-using System;
+using Microsoft.Extensions.Options;
 
-var builder = WebApplication.CreateBuilder(args); 
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = Directory.GetCurrentDirectory(),
+    EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"
+});
 
-// Database
+// 🔹 Configuration
+builder.Configuration
+    .SetBasePath(builder.Environment.ContentRootPath)
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+    .AddUserSecrets<Program>(optional: true)
+    .AddEnvironmentVariables();
 
+builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("Cloudinary"));
+
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IOptions<CloudinarySettings>>().Value;
+    var account = new Account(config.CloudName, config.ApiKey, config.ApiSecret);
+    return new Cloudinary(account);
+});
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddScoped<IImageStorageService, LocalImageStorageService>();
+}
+else
+{
+    builder.Services.AddScoped<IImageStorageService, CloudinaryStorageService>();
+}
+
+// 🔹 Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
-
-
-// Google Vision API key
-Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "Keys/identifyimageapp.json");
-builder.Services.AddHttpClient(); 
-
-//Clarifai settings
-builder.Configuration.AddUserSecrets<Program>();
-
+// 🔹 Clarifai
 builder.Services.Configure<ClarifaiSettings>(
-    builder.Configuration.GetSection("ClarifaiSettings")
-);
+    builder.Configuration.GetSection("ClarifaiSettings"));
+builder.Services.AddHttpClient();
 
-
-
-builder.Services.Configure<ClarifaiSettings>(builder.Configuration.GetSection("ClarifaiSettings"));
-
-
-
-
-// TempData support using session
+// 🔹 Session + MVC
 builder.Services.AddSession();
 builder.Services.AddControllersWithViews()
     .AddSessionStateTempDataProvider();
 
-// DI
-
-
+// 🔹 Dependency Injection
 builder.Services.AddScoped<IImageRepository, ImageRepository>();
 builder.Services.AddScoped<IClarifaiService, ClarifaiService>();
-builder.Services.AddScoped<IGoogleVisionService, GoogleVisionService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<ITaxService, TaxImplementation>();
 
+// 🔹 Build App
 var app = builder.Build();
 
-// Middleware
+// 🔹 Middleware
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
+else
+{
+    app.UseDeveloperExceptionPage();
+}
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
-app.UseSession(); // ✅ Required for TempData to work
-
+app.UseSession();
 app.UseRouting();
-
 app.UseAuthorization();
 
 app.MapControllerRoute(

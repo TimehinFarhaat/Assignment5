@@ -1,35 +1,45 @@
 trigger:
-- master
+- main
 
 pool:
-  vmImage: 'windows-latest'
+  vmImage: 'ubuntu-latest'
 
 variables:
   buildConfiguration: 'Release'
+
+  # These get replaced by Azure pipeline secrets
+  ASPNETCORE_ENVIRONMENT: 'Production'
+  ConnectionStrings__DefaultConnection: $(ConnectionStrings__DefaultConnection)
+  Cloudinary__CloudName: $(Cloudinary__CloudName)
+  Cloudinary__ApiKey: $(Cloudinary__ApiKey)
+  Cloudinary__ApiSecret: $(Cloudinary__ApiSecret)
 
 steps:
 - task: UseDotNet@2
   inputs:
     packageType: 'sdk'
-    version: '8.x.x'
+    version: '7.0.x'
     installationPath: $(Agent.ToolsDirectory)/dotnet
 
-- task: NuGetToolInstaller@1
-
-- task: NuGetCommand@2
+- task: DotNetCoreCLI@2
   inputs:
-    restoreSolution: '**/*.sln'
+    command: 'restore'
+    projects: '**/*.csproj'
 
-- task: VSBuild@1
+- task: DotNetCoreCLI@2
   inputs:
-    solution: '**/*.sln'
-    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:PackageLocation="$(Build.ArtifactStagingDirectory)"'
-    platform: 'Any CPU'
-    configuration: '$(buildConfiguration)'
+    command: 'build'
+    arguments: '--configuration $(buildConfiguration)'
+    projects: '**/*.csproj'
 
-- task: AzureWebApp@1
+- task: DotNetCoreCLI@2
   inputs:
-    azureSubscription: 'AzurePipelineConnection'
-    appType: 'webApp'
-    appName: 'CvAndToolsApp'
-    package: '$(Build.ArtifactStagingDirectory)/**/*.zip'
+    command: 'publish'
+    publishWebProjects: true
+    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+    zipAfterPublish: true
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathToPublish: '$(Build.ArtifactStagingDirectory)'
+    artifactName: 'drop'

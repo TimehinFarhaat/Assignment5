@@ -21,40 +21,35 @@ public class ClarifaiService : IClarifaiService
 
 
 
-    public async Task<(bool isMatch, List<string> labels)> AnalyzeImageAsync(string imagePath, string expectedCategory, string title)
+    public async Task<(bool isMatch, List<string> labels)> AnalyzeImageAsync(Stream imageStream, string expectedCategory, string title)
     {
-        if (!File.Exists(imagePath))
-            throw new FileNotFoundException("Image not found.");
+        // Convert image to base64
+        using var ms = new MemoryStream();
+        await imageStream.CopyToAsync(ms);
+        var base64Image = Convert.ToBase64String(ms.ToArray());
 
-        var base64Image = Convert.ToBase64String(await File.ReadAllBytesAsync(imagePath));
-
-
+        // Prepare Clarifai API request body
         var body = new
         {
             inputs = new[]
             {
-                new
+            new
+            {
+                data = new
                 {
-                    data = new
-                    {
-                        image = new { base64 = base64Image }
-                    }
+                    image = new { base64 = base64Image }
                 }
             }
+        }
         };
 
-       
         var url = $"https://api.clarifai.com/v2/users/{_settings.UserId}/apps/{_settings.AppId}/models/{_settings.ModelId}/outputs";
-
 
         var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
             Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json")
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Key", _settings.ApiKey);
-
-
-
 
         try
         {
@@ -68,23 +63,38 @@ public class ClarifaiService : IClarifaiService
 
             var json = JObject.Parse(jsonString);
 
+            // Extract labels from Clarifai response
             var labels = json["outputs"]?[0]?["data"]?["concepts"]
-                ?.Select(c => c["name"]?.ToString().ToLower())
+                ?.Select(c => c["name"]?.ToString().ToLowerInvariant())
                 .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct()
                 .ToList() ?? new List<string>();
 
-            // Define accepted tags for each category
+            // Debug: Print labels (optional)
+            Console.WriteLine($"Clarifai Labels for '{title}': {string.Join(", ", labels)}");
+
+            // Define valid tags for categories
             var acceptedLabels = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
             {
-                ["cloth"] = new List<string> { "clothing", "cloth", "apparel", "shirt", "t-shirt", "fashion", "jacket", "blouse", "outfit", "wear" },
-                ["food"] = new List<string> { "food", "meal", "dish", "cuisine", "snack", "fruit", "vegetable", "meat" },
-                ["building"] = new List<string> { "building", "architecture", "structure", "house", "office", "skyscraper", "apartment" }
+                ["cloth"] = new() { "clothing", "cloth", "apparel", "shirt", "t-shirt", "fashion", "jacket", "blouse", "outfit", "wear" },
+                ["food"] = new() { "food", "meal", "dish", "cuisine", "snack", "fruit", "vegetable", "meat" },
+                ["building"] = new() { "building", "architecture", "structure", "house", "office", "skyscraper", "apartment" }
             };
 
-            acceptedLabels.TryGetValue(expectedCategory.ToLower(), out var validTags);
+            acceptedLabels.TryGetValue(expectedCategory.ToLowerInvariant(), out var validTags);
             validTags ??= new List<string>();
 
-            bool isMatch = labels.Any(label => validTags.Any(tag => label.Contains(tag)));
+            // Find intersecting tags
+            var intersection = labels
+                .Intersect(validTags, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            bool isMatch = intersection.Any();
+            string newTitle = intersection.FirstOrDefault() ?? expectedCategory ?? title;
+
+
+
+            Console.WriteLine("Matched Tags: " + string.Join(", ", intersection));
 
             return (isMatch, labels);
         }
@@ -92,6 +102,8 @@ public class ClarifaiService : IClarifaiService
         {
             throw new Exception($"Failed to call Clarifai: {ex.Message}", ex);
         }
-
     }
+
 }
+
+

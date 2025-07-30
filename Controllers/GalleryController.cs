@@ -44,7 +44,6 @@ public class GalleryController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Upload(GalleryViewModelDto model)
     {
-
         if (!ModelState.IsValid || model.Upload?.ImageFile == null || model.Upload.ImageFile.Length == 0)
         {
             var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
@@ -52,36 +51,29 @@ public class GalleryController : Controller
             return RedirectToAction("Index");
         }
 
-
-        string uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads");
         try
         {
-            var (success, message) = await _imageService.UploadImageAsync(model.Upload, uploadPath);
+            var (success, message) = await _imageService.UploadImageAsync(model.Upload);
 
             if (!success)
             {
-                TempData["Error"] = "Upload failed: " + (message ?? "Inappropriate content, duplicate, or wrong category.");
+                TempData["Error"] = "Upload failed: " + (message ?? "Inappropriate content, duplicate, or invalid file.");
             }
             else
             {
                 TempData["Success"] = "Image uploaded successfully!";
                 if (!string.IsNullOrWhiteSpace(message))
-                {
                     TempData["Note"] = $"Title corrected to '{message}' based on image analysis.";
-                }
             }
         }
         catch (Exception ex)
         {
-            // TempData["Error"] = "An error occurred during upload. Please try again later.";
             TempData["Error"] = $"An error occurred during upload: {ex.Message}";
             Console.WriteLine(ex);
         }
 
         return RedirectToAction("Index");
     }
-
-
 
 
 }

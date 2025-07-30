@@ -2,6 +2,7 @@
 using CSharpMvcBasics.Interface.Repository;
 using CSharpMvcBasics.Interface.Services;
 using CSharpMvcBasics.Models;
+using Microsoft.AspNetCore.Hosting;
 using SixLabors.ImageSharp;
 using System.Drawing;
 
@@ -11,39 +12,36 @@ namespace CSharpMvcBasics.Implementation.Service
     public class ImageService : IImageService
     {
         private readonly IImageRepository _repo;
-        private readonly IGoogleVisionService _visionService;
         private readonly IClarifaiService _clarifaiService;
+        private readonly IImageStorageService _imageStorageService;
 
-        public ImageService(IImageRepository repo, IGoogleVisionService visionService, IClarifaiService clarifaiService)
+        public ImageService(IImageRepository repo, IClarifaiService clarifaiService, IImageStorageService 
+          imageStorageService)
         {
             _repo = repo;
-            _visionService = visionService;
             _clarifaiService = clarifaiService;
+           _imageStorageService = imageStorageService;
         }
 
 
 
-        public async Task<(bool success, string correctedTitle)> UploadImageAsync(ImageUploadDto dto, string uploadPath)
+        public async Task<(bool success, string correctedTitle)> UploadImageAsync(ImageUploadDto dto)
         {
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            var allowedMimeTypes = new[] { "image/jpeg", "image/png", "image/webp" };
 
-            string[] allowedExtensions = { ".jpg", ".jpeg", ".png", ".webp" };
-            string[] allowedMimeTypes = { "image/jpeg", "image/png", "image/webp" };
+            var extension = Path.GetExtension(dto.ImageFile.FileName).ToLowerInvariant();
+            var mimeType = dto.ImageFile.ContentType.ToLowerInvariant();
 
-            string mimeType = dto.ImageFile.ContentType.ToLower();
-            string extension = Path.GetExtension(dto.ImageFile.FileName).ToLower();
-
-            // Check MIME type and extension
-            if (!allowedMimeTypes.Contains(mimeType) || !allowedExtensions.Contains(extension))
-            {
+            if (!allowedExtensions.Contains(extension) || !allowedMimeTypes.Contains(mimeType))
                 return (false, "Only .jpg, .jpeg, .png, or .webp images are allowed.");
 
-            }
-            await using var readStream = dto.ImageFile.OpenReadStream();
-           
+            var readStream = dto.ImageFile.OpenReadStream();
+
             try
             {
-                using var img = await Image.LoadAsync(readStream); // ensure the file is actually an image
-                readStream.Position = 0; // Reset for re-use
+                using var img = await Image.LoadAsync(readStream); // validate
+                readStream.Position = 0;
             }
             catch
             {
@@ -52,59 +50,41 @@ namespace CSharpMvcBasics.Implementation.Service
 
             string hash = HashHelper.ComputeSHA256Hash(readStream);
             readStream.Position = 0;
-            // Check if hash already exists
-            bool exists = await _repo.ImageExist(hash);
-            if (exists)
-            {
+
+            if (await _repo.ImageExist(hash))
                 return (false, "Duplicate image detected.");
-            }
+
+          
+            readStream.Position = 0;
+            var imageUrl = await _imageStorageService.UploadFileAsync(readStream, dto.ImageFile.FileName);
+
+           
+            readStream.Position = 0;
+            var (isMatch, labels) = await _clarifaiService.AnalyzeImageAsync(readStream, dto.Category, dto.Title);
+
+            if (!isMatch)
+                return (false, "Category doesn't match image content.");
+
+            string cleanedTitle = dto.Title?.Trim().ToLowerInvariant() ?? "";
+            string correctedTitle = labels.FirstOrDefault(l =>
+                l.Contains(cleanedTitle) || cleanedTitle.Contains(l)
+            ) ?? labels.FirstOrDefault() ?? dto.Title;
 
 
-            string fileName = Guid.NewGuid() + Path.GetExtension(dto.ImageFile.FileName);
-            string filePath = Path.Combine(uploadPath, fileName);
-            Directory.CreateDirectory(uploadPath);
-            
-            // Save file to disk
-            await using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await dto.ImageFile.CopyToAsync(stream);
-            }
-
-            // Analyze image with Clarifai
-            var (isCategoryMatch, labels) = await _clarifaiService.AnalyzeImageAsync(filePath, dto.Category, dto.Title);
-
-            // If the category doesn't match the image content, reject it
-            if (!isCategoryMatch)
-            {
-                File.Delete(filePath);
-                return (false, "Inappropriate Category");
-            }
-
-            // Clean and match title
-            string cleanedTitle = dto.Title?.Trim().ToLower() ?? "";
-            bool titleMatches = labels.Any(label =>
-                label.Contains(cleanedTitle) || cleanedTitle.Contains(label)
-            );
-
-            string correctedTitle = titleMatches ? dto.Title : labels.FirstOrDefault() ?? dto.Title;
-
-
-            // Save to database
-            var newImage = new GalleryImage
+            var image = new GalleryImage
             {
                 Title = correctedTitle,
                 Category = dto.Category,
-                ImageUrl = "/uploads/" + fileName,
+                ImageUrl = imageUrl,
                 UploadDate = DateTime.Now,
                 IsApproved = true,
                 Hash = hash
             };
 
-            await _repo.AddAsync(newImage);
+            await _repo.AddAsync(image);
 
             return (true, correctedTitle == dto.Title ? null : correctedTitle);
         }
-
 
         public async Task<IEnumerable<ImageDto>> GetImagesAsync(ImageFilterParamsDto filter)
         {
