@@ -1,26 +1,54 @@
-# Build output
+## Build results
 bin/
 obj/
+out/
 
-# User-specific files
+## User-specific files
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
 
-# Visual Studio settings
-.vs/
+## OS-generated files
+.DS_Store
+Thumbs.db
+
+## VS Code settings
 .vscode/
 
-# EF Core secrets
-**/secrets.json
+## Visual Studio settings
+*.vs/
+*.vscode/
 
+## ASP.NET Core secrets
+secrets.json
 
-# Local DB files 
-*.mdf
-*.ldf
-*.db
+## IIS Express
+.vs/
+*.iisexpress/
+*.vspscc
 
-# Logs
+## Logs
 *.log
 
+## npm packages (if using front-end tooling)
+node_modules/
+
+## Publish folder
+publish/
+
+## Environment files
+.env
+
+## Azure Pipelines
+.azure-pipelines/
+
+## Crash dumps
+*.dmp
+
+## Rider IDE files
+.idea/
+*.sln.iml
+
+## Others
+wwwroot/lib/
