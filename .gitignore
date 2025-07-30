@@ -39,6 +39,8 @@ publish/
 
 ## Environment files
 .env
+##appsettings files
+appsettings.Production.json
 
 ## Azure Pipelines
 .azure-pipelines/
