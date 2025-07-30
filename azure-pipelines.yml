@@ -9,10 +9,10 @@ variables:
 
   # These get replaced by Azure pipeline secrets
   ASPNETCORE_ENVIRONMENT: 'Production'
-  ConnectionStrings__DefaultConnection: $(ConnectionStrings__DefaultConnection)
-  Cloudinary__CloudName: $(Cloudinary__CloudName)
-  Cloudinary__ApiKey: $(Cloudinary__ApiKey)
-  Cloudinary__ApiSecret: $(Cloudinary__ApiSecret)
+  ConnectionStrings__DefaultConnection: "Server=tcp:galleryserver123.database.windows.net,1433;Initial Catalog=GalleryDb;Persist Security Info=False;User ID=GalleryAdmin;Password=gallery_Admin;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;" 
+  Cloudinary__CloudName: "doshg2i7s" 
+  Cloudinary__ApiKey: "579626518565432" 
+  Cloudinary__ApiSecret: "7WbK-P5Wkz8dKko258n8abRwQbE" 
 
 steps:
 - task: UseDotNet@2
