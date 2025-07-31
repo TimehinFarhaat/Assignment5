@@ -7,6 +7,23 @@ using CSharpMvcBasics.Interface.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
+
+
+
+try
+{
+    var app = builder.Build();
+
+    // Your middleware pipeline here
+
+    app.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Fatal error during app startup: {ex}");
+    throw;
+}
+
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
@@ -31,18 +48,23 @@ builder.Services.AddSingleton(sp =>
     return new Cloudinary(account);
 });
 
+
+
 if (builder.Environment.IsDevelopment())
 {
-    builder.Services.AddScoped<IImageStorageService, LocalImageStorageService>();
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 }
 else
 {
-    builder.Services.AddScoped<IImageStorageService, CloudinaryStorageService>();
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresConnection")));
 }
+Console.WriteLine($"ASPNETCORE_ENVIRONMENT = {Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}");
 
-// 🔹 Database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+//// 🔹 Database
+//builder.Services.AddDbContext<ApplicationDbContext>(options =>
+//    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // 🔹 Clarifai
 builder.Services.Configure<ClarifaiSettings>(
