@@ -25,6 +25,7 @@ namespace CSharpMvcBasics.Implementation.Service
 
 
 
+
         public async Task<(bool success, string correctedTitle)> UploadImageAsync(ImageUploadDto dto)
         {
             var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
@@ -36,31 +37,36 @@ namespace CSharpMvcBasics.Implementation.Service
             if (!allowedExtensions.Contains(extension) || !allowedMimeTypes.Contains(mimeType))
                 return (false, "Only .jpg, .jpeg, .png, or .webp images are allowed.");
 
-            var readStream = dto.ImageFile.OpenReadStream();
+            using var originalStream = new MemoryStream();
+            await dto.ImageFile.CopyToAsync(originalStream);
+
+            // Clone the stream into separate copies
+            byte[] imageBytes = originalStream.ToArray();
 
             try
             {
-                using var img = await Image.LoadAsync(readStream); // validate
-                readStream.Position = 0;
+                using var validateStream = new MemoryStream(imageBytes);
+                using var img = await Image.LoadAsync(validateStream); // Validate image
             }
             catch
             {
                 return (false, "The uploaded file is not a valid image.");
             }
 
-            string hash = HashHelper.ComputeSHA256Hash(readStream);
-            readStream.Position = 0;
+            // Compute hash
+            using var hashStream = new MemoryStream(imageBytes);
+            string hash = HashHelper.ComputeSHA256Hash(hashStream);
 
             if (await _repo.ImageExist(hash))
                 return (false, "Duplicate image detected.");
 
-          
-            readStream.Position = 0;
-            var imageUrl = await _imageStorageService.UploadFileAsync(readStream, dto.ImageFile.FileName);
+            // Upload to storage
+            using var uploadStream = new MemoryStream(imageBytes);
+            var imageUrl = await _imageStorageService.UploadFileAsync(uploadStream, dto.ImageFile.FileName);
 
-           
-            readStream.Position = 0;
-            var (isMatch, labels) = await _clarifaiService.AnalyzeImageAsync(readStream, dto.Category, dto.Title);
+            // Analyze with Clarifai
+            using var analyzeStream = new MemoryStream(imageBytes);
+            var (isMatch, labels) = await _clarifaiService.AnalyzeImageAsync(analyzeStream, dto.Category, dto.Title);
 
             if (!isMatch)
                 return (false, "Category doesn't match image content.");
@@ -70,13 +76,13 @@ namespace CSharpMvcBasics.Implementation.Service
                 l.Contains(cleanedTitle) || cleanedTitle.Contains(l)
             ) ?? labels.FirstOrDefault() ?? dto.Title;
 
-
             var image = new GalleryImage
             {
                 Title = correctedTitle,
                 Category = dto.Category,
                 ImageUrl = imageUrl,
-                UploadDate = DateTime.Now,
+                UploadDate = DateTime.UtcNow
+,
                 IsApproved = true,
                 Hash = hash
             };
@@ -85,6 +91,11 @@ namespace CSharpMvcBasics.Implementation.Service
 
             return (true, correctedTitle == dto.Title ? null : correctedTitle);
         }
+
+
+
+
+
 
         public async Task<IEnumerable<ImageDto>> GetImagesAsync(ImageFilterParamsDto filter)
         {
