@@ -21,13 +21,15 @@ namespace CSharpMvcBasics.DTO
         // This will be used for populating the dropdown in the view
         public IEnumerable<SelectListItem> Currencies =>
          Enum.GetValues(typeof(CurrencyCode))
-       .Cast<CurrencyCode>()
-       .Select(c => new SelectListItem
-       {
-           Value = c.ToString(),
-           Text = GetCurrencyDisplayName(c)
-       });
+             .Cast<CurrencyCode>()
+             .Select(c => new SelectListItem
+             {
+                 Value = c.ToString(),
+                 Text = GetCurrencyDisplayName(c)
+             })
+             .OrderBy(item => item.Text);
 
+      
 
 
         public string GetCurrencyDisplayName(CurrencyCode code)
