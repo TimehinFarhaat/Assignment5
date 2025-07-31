@@ -64,6 +64,8 @@ builder.Services.AddControllersWithViews()
     .AddSessionStateTempDataProvider();
 
 // 🔹 DI - Repositories and Services
+builder.Services.AddHttpClient<ICurrencyService, CurrencyService>();
+
 builder.Services.AddScoped<IImageRepository, ImageRepository>();
 builder.Services.AddScoped<IClarifaiService, ClarifaiService>();
 builder.Services.AddScoped<IImageService, ImageService>();

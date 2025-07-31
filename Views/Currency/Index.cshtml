@@ -1,0 +1,103 @@
+﻿@model CSharpMvcBasics.DTO.CurrencyViewModel
+
+@{
+    ViewData["Title"] = "Currency Converter";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="card animated-card shadow-lg border-0 rounded-4" style="background: linear-gradient(to right, #ffffff, #f9fbff); backdrop-filter: blur(10px);">
+                <div class="card-body p-5  ">
+                    <h3 class="text-center text-primary mb-4">💱 Currency Converter</h3>
+
+                    <form asp-action="Convert" method="post" novalidate>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label asp-for="FromCurrency" class="form-label fw-semibold">From Currency</label>
+                                <select asp-for="FromCurrency" asp-items="Model.Currencies" class="form-select select2 shadow-sm rounded-pill" required>
+                                    <option value="">🌍 Select Currency</option>
+                                </select>
+                                <span asp-validation-for="FromCurrency" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="ToCurrency" class="form-label fw-semibold">To Currency</label>
+                                <select asp-for="ToCurrency" asp-items="Model.Currencies" class="form-select select2 shadow-sm rounded-pill" required>
+                                    <option value="">🌍 Select Currency</option>
+                                </select>
+                                <span asp-validation-for="ToCurrency" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12 text-center">
+                                <label asp-for="Amount" class="form-label fw-semibold">Amount</label>
+                                <input asp-for="Amount"
+                                       class="form-control form-control-sm shadow-sm text-center rounded-pill mx-auto"
+                                       style="max-width: 250px;"
+                                       type="number" step="0.01" min="0" placeholder="amount" />
+                                <span asp-validation-for="Amount" class="text-danger small d-block"></span>
+                            </div>
+
+                            <div class="col-12 text-center">
+                                <button type="submit" class="btn btn-primary px-5 py-2 rounded-pill shadow-sm mt-2">
+                                    🔄 Convert
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    @if (Model.Result > 0)
+                    {
+                        <div class="alert alert-success mt-4 text-center rounded-pill shadow-sm">
+                            💰 <strong>@Model.Amount</strong> @Model.FromCurrency = <strong>@Model.Result</strong> @Model.ToCurrency
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background: #f0f4f8;
+        }
+
+        .select2-container .select2-selection--single {
+            height: 45px !important;
+            padding: 10px 14px;
+            font-size: 16px;
+            border-radius: 50px !important;
+            background-color: #fff;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 24px;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 34px;
+        }
+
+        label {
+            color: #495057;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('.select2').select2({
+                placeholder: "🌍 Select currency",
+                allowClear: true,
+                width: '100%'
+            });
+        });
+    </script>
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+}
