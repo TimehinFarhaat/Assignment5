@@ -5,7 +5,7 @@ namespace CSharpMvcBasics.Models
     public class GalleryImage
     {
         public int Id { get; set; }
-        
+
         [Required]
         public string Title { get; set; }
 
@@ -14,11 +14,14 @@ namespace CSharpMvcBasics.Models
 
         [Required]
         public string ImageUrl { get; set; }
-        public DateTime UploadDate { get; set; }
+
+       
+        public DateTime UploadDate { get; set; } = DateTime.UtcNow;
+
         public bool IsApproved { get; set; }
+
         [Required]
         public string Hash { get; set; }
-
 
     }
 

@@ -7,11 +7,6 @@ using CSharpMvcBasics.Interface.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-
-
-
-
-
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
@@ -19,16 +14,18 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"
 });
 
-// 🔹 Configuration
+var env = builder.Environment;
+
+// 🔹 Load Configuration
 builder.Configuration
-    .SetBasePath(builder.Environment.ContentRootPath)
+    .SetBasePath(env.ContentRootPath)
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+    .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
     .AddUserSecrets<Program>(optional: true)
     .AddEnvironmentVariables();
 
+// 🔹 Cloudinary
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("Cloudinary"));
-
 builder.Services.AddSingleton(sp =>
 {
     var config = sp.GetRequiredService<IOptions<CloudinarySettings>>().Value;
@@ -36,54 +33,56 @@ builder.Services.AddSingleton(sp =>
     return new Cloudinary(account);
 });
 
-
-
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-}
-else
-{
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresConnection")));
-}
-Console.WriteLine($"ASPNETCORE_ENVIRONMENT = {Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}");
-
-//// 🔹 Database
-//builder.Services.AddDbContext<ApplicationDbContext>(options =>
-//    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
 // 🔹 Clarifai
-builder.Services.Configure<ClarifaiSettings>(
-    builder.Configuration.GetSection("ClarifaiSettings"));
+builder.Services.Configure<ClarifaiSettings>(builder.Configuration.GetSection("ClarifaiSettings"));
 builder.Services.AddHttpClient();
 
-// 🔹 Session + MVC
+// 🔹 Image Storage (Dev: Local, Prod: Cloudinary)
+if (env.IsDevelopment())
+    builder.Services.AddScoped<IImageStorageService, LocalImageStorageService>();
+else
+    builder.Services.AddScoped<IImageStorageService, CloudinaryStorageService>();
+
+// 🔹 Database
+var connectionString = builder.Configuration.GetConnectionString(
+    env.IsDevelopment() ? "DefaultConnection" : "PostgresConnection");
+
+Console.WriteLine($"📦 Using connection string: {connectionString}");
+Console.WriteLine($"🌍 Environment: {env.EnvironmentName}");
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    if (env.IsDevelopment())
+        options.UseSqlServer(connectionString);
+    else
+        options.UseNpgsql(connectionString);
+});
+
+// 🔹 MVC + Session
 builder.Services.AddSession();
 builder.Services.AddControllersWithViews()
     .AddSessionStateTempDataProvider();
 
-// 🔹 Dependency Injection
+// 🔹 DI - Repositories and Services
 builder.Services.AddScoped<IImageRepository, ImageRepository>();
 builder.Services.AddScoped<IClarifaiService, ClarifaiService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<ITaxService, TaxImplementation>();
 
 // 🔹 Build App
-
 try
 {
     var app = builder.Build();
+
     // 🔹 Middleware
-    if (!app.Environment.IsDevelopment())
+    if (env.IsDevelopment())
     {
-        app.UseExceptionHandler("/Home/Error");
-        app.UseHsts();
+        app.UseDeveloperExceptionPage();
     }
     else
     {
-        app.UseDeveloperExceptionPage();
+        app.UseExceptionHandler("/Home/Error");
+        app.UseHsts();
     }
 
     app.UseHttpsRedirection();
@@ -97,15 +96,9 @@ try
         pattern: "{controller=Home}/{action=Index}/{id?}");
 
     app.Run();
-
-    // Your middleware pipeline here
-
-    app.Run();
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"Fatal error during app startup: {ex}");
+    Console.WriteLine($"❌ Fatal error during app startup: {ex}");
     throw;
 }
-
-
