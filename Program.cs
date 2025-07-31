@@ -14,23 +14,16 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"
 });
 
-// 🔹 Configuration Sources
+// 🔹 Configuration
 builder.Configuration
-    .SetBasePath(Directory.GetCurrentDirectory())
+    .SetBasePath(builder.Environment.ContentRootPath)
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+    .AddUserSecrets<Program>(optional: true)
     .AddEnvironmentVariables();
 
-// 🔹 Log the environment and connection string to verify during migration/debug
-Console.WriteLine($"➡️ ENVIRONMENT: {builder.Environment.EnvironmentName}");
-
-var postgresConn = builder.Configuration.GetConnectionString("PostgresConnection");
-var sqlServerConn = builder.Configuration.GetConnectionString("DefaultConnection");
-Console.WriteLine($"🟢 PostgresConnection: {postgresConn}");
-Console.WriteLine($"🔵 DefaultConnection: {sqlServerConn}");
-
-// 🔹 Cloudinary Settings
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("Cloudinary"));
+
 builder.Services.AddSingleton(sp =>
 {
     var config = sp.GetRequiredService<IOptions<CloudinarySettings>>().Value;
@@ -38,7 +31,6 @@ builder.Services.AddSingleton(sp =>
     return new Cloudinary(account);
 });
 
-// 🔹 Image Storage Service
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddScoped<IImageStorageService, LocalImageStorageService>();
@@ -48,24 +40,16 @@ else
     builder.Services.AddScoped<IImageStorageService, CloudinaryStorageService>();
 }
 
-// 🔹 Database Configuration
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-}
-else
-{
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresConnection")));
-}
+// 🔹 Database
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
-// 🔹 Clarifai Settings
-builder.Services.Configure<ClarifaiSettings>(builder.Configuration.GetSection("ClarifaiSettings"));
+// 🔹 Clarifai
+builder.Services.Configure<ClarifaiSettings>(
+    builder.Configuration.GetSection("ClarifaiSettings"));
 builder.Services.AddHttpClient();
 
-// 🔹 MVC + Session
+// 🔹 Session + MVC
 builder.Services.AddSession();
 builder.Services.AddControllersWithViews()
     .AddSessionStateTempDataProvider();
