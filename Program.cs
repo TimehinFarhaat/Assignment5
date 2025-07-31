@@ -10,19 +10,7 @@ using Microsoft.Extensions.Options;
 
 
 
-try
-{
-    var app = builder.Build();
 
-    // Your middleware pipeline here
-
-    app.Run();
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"Fatal error during app startup: {ex}");
-    throw;
-}
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -83,27 +71,41 @@ builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<ITaxService, TaxImplementation>();
 
 // 🔹 Build App
-var app = builder.Build();
 
-// 🔹 Middleware
-if (!app.Environment.IsDevelopment())
+try
 {
-    app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
+    var app = builder.Build();
+    // 🔹 Middleware
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseExceptionHandler("/Home/Error");
+        app.UseHsts();
+    }
+    else
+    {
+        app.UseDeveloperExceptionPage();
+    }
+
+    app.UseHttpsRedirection();
+    app.UseStaticFiles();
+    app.UseSession();
+    app.UseRouting();
+    app.UseAuthorization();
+
+    app.MapControllerRoute(
+        name: "default",
+        pattern: "{controller=Home}/{action=Index}/{id?}");
+
+    app.Run();
+
+    // Your middleware pipeline here
+
+    app.Run();
 }
-else
+catch (Exception ex)
 {
-    app.UseDeveloperExceptionPage();
+    Console.WriteLine($"Fatal error during app startup: {ex}");
+    throw;
 }
 
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-app.UseSession();
-app.UseRouting();
-app.UseAuthorization();
 
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
-
-app.Run();
